@@ -43,28 +43,45 @@ class DeliveryBuilder implements OrderRequestBuilderInterface
         SalesChannelContext $salesChannelContext
     ): void {
         $customer = $salesChannelContext->getCustomer();
-        $defaultShippingAddress = $customer->getDefaultShippingAddress();
-        [$shippingStreet, $shippingHouseNumber] =
-            $addressParser = (new AddressParser())->parse($defaultShippingAddress->getStreet());
 
-        $orderRequestAddress = (new Address())->addCity($defaultShippingAddress->getCity())
+        $shippingOrderAddress = $this->getShippingOrderAddress($transaction);
+        if ($shippingOrderAddress === null) {
+            return;
+        }
+
+        [$shippingStreet, $shippingHouseNumber] =
+            (new AddressParser())->parse($shippingOrderAddress->getStreet());
+
+        $orderRequestAddress = (new Address())->addCity($shippingOrderAddress->getCity())
             ->addCountry(new Country(
-                $defaultShippingAddress->getCountry() ? $defaultShippingAddress->getCountry()->getIso() : ''
+                $shippingOrderAddress->getCountry() ? $shippingOrderAddress->getCountry()->getIso() : ''
             ))
             ->addHouseNumber($shippingHouseNumber)
             ->addStreetName($shippingStreet)
-            ->addZipCode(trim($defaultShippingAddress->getZipcode()));
+            ->addZipCode(trim($shippingOrderAddress->getZipcode()));
 
-        if ($defaultShippingAddress->getCountryState()) {
-            $orderRequestAddress->addState($defaultShippingAddress->getCountryState()->getName());
+        if ($shippingOrderAddress->getCountryState()) {
+            $orderRequestAddress->addState($shippingOrderAddress->getCountryState()->getName());
         }
 
-        $deliveryDetails = (new CustomerDetails())->addFirstName($defaultShippingAddress->getFirstName())
-            ->addLastName($defaultShippingAddress->getLastName())
+        $deliveryDetails = (new CustomerDetails())->addFirstName($shippingOrderAddress->getFirstName())
+            ->addLastName($shippingOrderAddress->getLastName())
             ->addAddress($orderRequestAddress)
-            ->addPhoneNumber(new PhoneNumber($defaultShippingAddress->getPhoneNumber() ?? ''))
+            ->addPhoneNumber(new PhoneNumber($shippingOrderAddress->getPhoneNumber() ?? ''))
             ->addEmailAddress(new EmailAddress($customer->getEmail()));
 
         $orderRequest->addDelivery($deliveryDetails);
+    }
+
+    private function getShippingOrderAddress(AsyncPaymentTransactionStruct $transaction)
+    {
+        $deliveries = $transaction->getOrder()->getDeliveries();
+        if ($deliveries === null
+            || $deliveries->first() === null
+            || $deliveries->first()->getShippingOrderAddress() === null
+        ) {
+            return null;
+        }
+        return $deliveries->first()->getShippingOrderAddress();
     }
 }

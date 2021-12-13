@@ -67,29 +67,29 @@ class CustomerBuilder implements OrderRequestBuilderInterface
     ): void {
         $request = $this->requestUtil->getGlobals();
         $customer = $salesChannelContext->getCustomer();
-        $defaultBillingAddress = $customer->getDefaultBillingAddress();
+        $billingAddress = $transaction->getOrder()->getBillingAddress();
         [$billingStreet, $billingHouseNumber] =
-            (new AddressParser())->parse($defaultBillingAddress->getStreet());
+            (new AddressParser())->parse($billingAddress->getStreet());
 
-        $orderRequestAddress = (new Address())->addCity($defaultBillingAddress->getCity())
+        $orderRequestAddress = (new Address())->addCity($billingAddress->getCity())
             ->addCountry(new Country(
-                $defaultBillingAddress->getCountry() ? $defaultBillingAddress->getCountry()->getIso() : ''
+                $billingAddress->getCountry() ? $billingAddress->getCountry()->getIso() : ''
             ))
             ->addHouseNumber($billingHouseNumber)
             ->addStreetName($billingStreet)
-            ->addZipCode(trim($defaultBillingAddress->getZipcode()));
+            ->addZipCode(trim($billingAddress->getZipcode()));
 
-        if ($defaultBillingAddress->getCountryState() !== null) {
-            $orderRequestAddress->addState($defaultBillingAddress->getCountryState()->getName());
+        if ($billingAddress->getCountryState() !== null) {
+            $orderRequestAddress->addState($billingAddress->getCountryState()->getName());
         }
 
 
         $customerDetails = (new CustomerDetails())
             ->addLocale($this->getLocale($salesChannelContext))
-            ->addFirstName($defaultBillingAddress->getFirstName())
-            ->addLastName($defaultBillingAddress->getLastName())
+            ->addFirstName($billingAddress->getFirstName())
+            ->addLastName($billingAddress->getLastName())
             ->addAddress($orderRequestAddress)
-            ->addPhoneNumber(new PhoneNumber($defaultBillingAddress->getPhoneNumber() ?? ''))
+            ->addPhoneNumber(new PhoneNumber($billingAddress->getPhoneNumber() ?? ''))
             ->addEmailAddress(new EmailAddress($customer->getEmail()))
             ->addUserAgent($request->headers->get('User-Agent'))
             ->addReferrer($request->server->get('HTTP_REFERER'))
